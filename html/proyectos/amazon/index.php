@@ -1,12 +1,13 @@
 <?php
 session_start();
 
+
 //Variables
 $products = [
     ["id" => 1, "name" => "Teclado", "price" => 240, "category" => "Gaming", "stock" => 10, "information" => "Teclado mecánico con retroiluminación RGB y switches de alta calidad, ideal para gaming y escritura rápida."],
     ["id" => 2, "name" => "Ratón", "price" => 120, "category" => "Gaming", "stock" => 15, "information" => "Ratón ergonómico con sensor de alta precisión y botones programables, perfecto para juegos competitivos."],
     ["id" => 3, "name" => "Monitor", "price" => 400, "category" => "Informática", "stock" => 5, "information" => "Monitor de alta resolución con tecnología LED y ángulo de visión amplio."],
-    ["id" => 4, "name" => "Webcam", "price" => 30, "category" => "Informática", "stock" => 0, "information" => "Webcam de alta calidad con capacidad de grabación en HD y micrófono incorporado."],
+    ["id" => 4, "name" => "Webcam", "price" => 30, "category" => "Informática", "stock" => 1, "information" => "Webcam de alta calidad con capacidad de grabación en HD y micrófono incorporado."],
     ["id" => 5, "name" => "Auriculares", "price" => 60, "category" => "Gaming", "stock" => 3, "information" => "Auriculares gaming con sonido envolvente y micrófono de alta calidad."],
     ["id" => 6, "name" => "Alfombrilla", "price" => 20, "category" => "Informática", "stock" => 20, "information" => "Alfombrilla para ratón con superficie antideslizante y diseño ergonómico."],
 ];
@@ -55,46 +56,23 @@ if (isset($_POST['add'])) {
 }
 
 // Cuando se pulsa el botón de añadir al carrito
-if (isset($_POST['buy'])) {
-    $selected = $_POST['selected'] ?? [];
-    $messages = [];
 
-    foreach ($selected as $id) {
-        $id = (int) $id;
-        $qty = (int) ($_POST['quantity'][$id] ?? 0);
 
-        foreach ($products as $key => $product) {
-            if ($product['id'] === $id) {
-                if ($qty < 1) {
-                    $messages[] = ["danger", "Cantidad no válida para {$product['name']}."];
-                } elseif ($qty > $product['stock']) {
-                    $messages[] = ["danger", "No hay stock suficiente de {$product['name']} (quedan {$product['stock']})."];
-                } else {
-                    // Resto del stock
-                    $products[$key]['stock'] -= $qty;
-                    // Añado al carrito (si ya estaba, sumo la cantidad)
-                    $cart[$id] = ($cart[$id] ?? 0) + $qty;
-                    $messages[] = ["success", "Añadido {$qty} x {$product['name']} al carrito."];
-                }
-                break;
-            }
-        }
+// Cuando se pulsa el botón de añadir al carrito
+if (isset($_GET['buy'])) {
+    foreach ($products as $product) {
+        if ($product['id'] == $_GET['buy']) {
+            $cart[] = [
+                "id" => $product['id'],
+                "name" => $product['name'],
+                "price" => $product['price'],
+                "category" => $product['category'],
+                "stock" => $product['stock'],
+                "quantity" => (isset($_GET['quantity']) ? $_GET['quantity'] : 1)
+            ];
     }
-
-    if (empty($selected)) {
-        $messages[] = ["warning", "No has seleccionado ningún producto."];
-    }
-
-    $_SESSION['products'] = $products;
-    $_SESSION['cart'] = $cart;
-    $_SESSION['messages'] = $messages;
-
-    // Redirijo para que al refrescar no se vuelva a enviar el formulario (y reste stock otra vez)
-    header("Location: ?opcion=1");
-    exit;
 }
-
-
+}
 
 // Menu de con bootstrap
 ?>
@@ -127,40 +105,43 @@ switch ($opcion) {
     case 1:
     case 2:
         ?>
-        <form action="" method="post">
-            <div class="table-responsive">
-                <!--Creo la tabla -->
-                <table class="table">
-                    <tr align="center">
-                        <th>Elegir</th>
-                        <th>id</th>
-                        <th>Nombre</th>
-                        <th>Precio</th>
-                        <th>Categoría</th>
-                        <th>Stock</th>
-                        <th>Cantidad</th>
+        <div class="table-responsive">
+            <!--Creo la tabla -->
+            <table class="table">
+                <tr align="center">
+                    <th>id</th>
+                    <th>Nombre</th>
+                    <th>Precio</th>
+                    <th>Categoría</th>
+                    <th>Stock</th>
+                    <th>Cantidad</th>
+                </tr>
+                <?php
+                foreach ($products as $product) {
+                    ?>
+                    <tr>
+                        </td>
+                        <td align="center"><a
+                                href="?opcion=1&product=<?php echo $product["id"]; ?>"><?php echo $product["id"]; ?></a>
+                        </td>
+                        <td align="center"><?php echo $product["name"]; ?></td>
+                        <td align="center"><?php echo $product["price"]; ?></td>
+                        <td align="center"><?php echo $product["category"]; ?></td>
+                        <td align="center"><?php echo $product["stock"]; ?></td>
+                        <form action="" method="get">
+                            <td align="center">
+                                <input type="number" name="quantity" value="1" min="1" max="<?php echo $product["stock"]; ?>">
+                            </td>
+                            <td align="center">
+                                <button type="submit" name="buy" value="<?php echo $product["id"]; ?>">Añadir</button>
+                            </td>
+                        </form>
                     </tr>
                     <?php
-                    foreach ($products as $product) {
-                        ?>
-                        <tr>
-                            <td align="center"> <input type="checkbox" name="selected[]">
-                            </td>
-                            <td align="center"><a
-                                    href="?opcion=1&product=<?php echo $product["id"]; ?>"><?php echo $product["id"]; ?></a></td>
-                            <td align="center"><?php echo $product["name"]; ?></td>
-                            <td align="center"><?php echo $product["price"]; ?></td>
-                            <td align="center"><?php echo $product["category"]; ?></td>
-                            <td align="center"><?php echo $product["stock"]; ?></td>
-                            <td align="center"><input type="number" value="1" min="1" max="<?php echo $product["stock"]; ?>"></td>
-                        </tr>
-                        <?php
-                    }
-                    ?>
-                </table>
-                <button type="submit" name="buy" class="btn btn-primary" style="margin-left: 20px;">Añadir</button>
-            </div>
-        </form>
+                }
+                ?>
+            </table>
+        </div>
         <br>
         <?php
 
@@ -217,38 +198,38 @@ switch ($opcion) {
     case 3:
         ?>
         <div class="table-responsive">
-                <!--Creo la tabla -->
-                <table class="table">
-                    <tr align="center">
-                        <th>Elegir</th>
-                        <th>id</th>
-                        <th>Nombre</th>
-                        <th>Precio</th>
-                        <th>Categoría</th>
-                        <th>Stock</th>
-                        <th>Cantidad</th>
-                    </tr>
-                    <?php
-                    foreach ($cart as $product) {
-                        ?>
-                        <tr>
-                            <td align="center"> <input type="checkbox" name="selected[]">
+            <table class="table">
+                <tr align="center">
+                    <th>id</th>
+                    <th>Nombre</th>
+                    <th>Precio</th>
+                    <th>Categoría</th>
+                    <th>Stock</th>
+                    <th>Cantidad</th>
+                    <th></th>
+                </tr>
+                <?php foreach ($products as $product) { ?>
+                    <tr>
+                        <td align="center">
+                            <a href="?opcion=1&product=<?php echo $product["id"]; ?>"><?php echo $product["id"]; ?></a>
+                        </td>
+                        <td align="center"><?php echo $product["name"]; ?></td>
+                        <td align="center"><?php echo $product["price"]; ?></td>
+                        <td align="center"><?php echo $product["category"]; ?></td>
+                        <td align="center"><?php echo $product["stock"]; ?></td>
+                        <form action="" method="get">
+                            <td align="center">
+                                <p name="quantity"></p>
                             </td>
-                            <td align="center"><a
-                                    href="?opcion=1&product=<?php echo $product["id"]; ?>"><?php echo $product["id"]; ?></a></td>
-                            <td align="center"><?php echo $product["name"]; ?></td>
-                            <td align="center"><?php echo $product["price"]; ?></td>
-                            <td align="center"><?php echo $product["category"]; ?></td>
-                            <td align="center"><?php echo $product["stock"]; ?></td>
-                            <td align="center"><input type="number" value="1" min="1" max="<?php echo $product["stock"]; ?>"></td>
-                        </tr>
-                        <?php
-                    }
-                    ?>
-                </table>
-                <button type="submit" name="buy" class="btn btn-primary" style="margin-left: 20px;">Añadir</button>
-            </div>
-            <?php
+                            <td align="center">
+                                <button type="submit" name="delete" value="<?php echo $product["id"]; ?>">delete</button>
+                            </td>
+                        </form>
+                    </tr>
+                <?php } ?>
+            </table>
+        </div>
+        <?php
         break;
     case 4:
 
