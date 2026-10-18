@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-
+//Variables
 $products = [
     ["id" => 1, "name" => "Teclado", "price" => 240, "category" => "Gaming", "stock" => 10, "information" => "Teclado mecánico con retroiluminación RGB y switches de alta calidad, ideal para gaming y escritura rápida."],
     ["id" => 2, "name" => "Ratón", "price" => 120, "category" => "Gaming", "stock" => 15, "information" => "Ratón ergonómico con sensor de alta precisión y botones programables, perfecto para juegos competitivos."],
@@ -25,12 +25,78 @@ if (isset($_SESSION['cart'])) {
     $_SESSION['cart'] = $cart;
 }
 
+// Cuando pulsas el boton de limpiar cesta
 if (isset($_GET['empty'])) {
     $_SESSION['cart'] = [];
     $cart = [];
 }
 
+// Cuando se añada un producto lo inserto en el array de productos con sus respectivos datos
+if (isset($_POST['add'])) {
+    $idMax = 0;
+    foreach ($products as $product) {
+        if ($product['id'] > $idMax) {
+            $idMax = $product['id'];
+        }
+    }
+    $products[] = [
+        "id" => $idMax + 1,
+        "name" => (isset($_POST['name']) ? $_POST['name'] : null),
+        "price" => (isset($_POST['price']) ? $_POST['price'] : null),
+        "category" => (isset($_POST['category']) ? $_POST['category'] : null),
+        "stock" => (isset($_POST['stock']) ? $_POST['stock'] : null),
+        "information" => (isset($_POST['information']) ? $_POST['information'] : null)
+    ];
 
+    $_SESSION['products'] = $products;
+
+    header("Location: ?opcion=1");
+    exit;
+}
+
+// Cuando se pulsa el botón de añadir al carrito
+if (isset($_POST['buy'])) {
+    $selected = $_POST['selected'] ?? [];
+    $messages = [];
+
+    foreach ($selected as $id) {
+        $id = (int) $id;
+        $qty = (int) ($_POST['quantity'][$id] ?? 0);
+
+        foreach ($products as $key => $product) {
+            if ($product['id'] === $id) {
+                if ($qty < 1) {
+                    $messages[] = ["danger", "Cantidad no válida para {$product['name']}."];
+                } elseif ($qty > $product['stock']) {
+                    $messages[] = ["danger", "No hay stock suficiente de {$product['name']} (quedan {$product['stock']})."];
+                } else {
+                    // Resto del stock
+                    $products[$key]['stock'] -= $qty;
+                    // Añado al carrito (si ya estaba, sumo la cantidad)
+                    $cart[$id] = ($cart[$id] ?? 0) + $qty;
+                    $messages[] = ["success", "Añadido {$qty} x {$product['name']} al carrito."];
+                }
+                break;
+            }
+        }
+    }
+
+    if (empty($selected)) {
+        $messages[] = ["warning", "No has seleccionado ningún producto."];
+    }
+
+    $_SESSION['products'] = $products;
+    $_SESSION['cart'] = $cart;
+    $_SESSION['messages'] = $messages;
+
+    // Redirijo para que al refrescar no se vuelva a enviar el formulario (y reste stock otra vez)
+    header("Location: ?opcion=1");
+    exit;
+}
+
+
+
+// Menu de con bootstrap
 ?>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
     integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
@@ -51,65 +117,83 @@ if (isset($_GET['empty'])) {
     </div>
 </nav>
 
+
 <?php
-switch ($_GET["opcion"]) {
+// Compruebo que opcion del menu pulso
+$opcion = $_GET["opcion"] ?? 1;
+
+switch ($opcion) {
+    // Si pulso la opcion 1 o 2 creo la tabla con la diferencia que en el 2 muestra un formulario
     case 1:
     case 2:
         ?>
-        <div class="table-responsive">
-            <table class="table">
-                <tr align="center">
-                    <th>id</th>
-                    <th>Nombre</th>
-                    <th>Precio</th>
-                    <th>Categoría</th>
-                    <th>Stock</th>
-                </tr>
-                <?php
-                foreach ($products as $product) {
-                    ?>
-                    <tr>
-                        <td align="center"><a href="?product=<?php echo $product["id"]; ?>"><?php echo $product["id"]; ?></a></td>
-                        <td align="center"><?php echo $product["name"]; ?></td>
-                        <td align="center"><?php echo $product["price"]; ?></td>
-                        <td align="center"><?php echo $product["category"]; ?></td>
-                        <td align="center"><?php echo $product["stock"]; ?></td>
+        <form action="" method="post">
+            <div class="table-responsive">
+                <!--Creo la tabla -->
+                <table class="table">
+                    <tr align="center">
+                        <th>Elegir</th>
+                        <th>id</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Categoría</th>
+                        <th>Stock</th>
+                        <th>Cantidad</th>
                     </tr>
                     <?php
-                }
-                ?>
-            </table>
-        </div>
-
+                    foreach ($products as $product) {
+                        ?>
+                        <tr>
+                            <td align="center"> <input type="checkbox" name="selected[]">
+                            </td>
+                            <td align="center"><a
+                                    href="?opcion=1&product=<?php echo $product["id"]; ?>"><?php echo $product["id"]; ?></a></td>
+                            <td align="center"><?php echo $product["name"]; ?></td>
+                            <td align="center"><?php echo $product["price"]; ?></td>
+                            <td align="center"><?php echo $product["category"]; ?></td>
+                            <td align="center"><?php echo $product["stock"]; ?></td>
+                            <td align="center"><input type="number" value="1" min="1" max="<?php echo $product["stock"]; ?>"></td>
+                        </tr>
+                        <?php
+                    }
+                    ?>
+                </table>
+                <button type="submit" name="buy" class="btn btn-primary" style="margin-left: 20px;">Añadir</button>
+            </div>
+        </form>
         <br>
         <?php
+
+        //Creo el formulario con bootstrap si es la opcion 2
         if ($_GET['opcion'] == 2) {
             ?>
-            <form method="post" action="?opcion=2">
+            <form method="post" action="" style="margin-inline: 20px;">
                 <div class="form-group">
                     <label for="name">Nombre del producto</label>
-                    <input type="text" class="form-control" id="name" name="name" required>
+                    <input type="text" class="form-control" name="name" required>
                 </div>
                 <div class="form-group">
                     <label for="price">Precio</label>
-                    <input type="number" class="form-control" id="price" name="price" required>
+                    <input type="number" class="form-control" name="price" required>
                 </div>
                 <div class="form-group">
                     <label for="category">Categoría</label>
-                    <input type="text" class="form-control" id="category" name="category" required>
+                    <input type="text" class="form-control" name="category" required>
                 </div>
                 <div class="form-group">
                     <label for="stock">Stock</label>
-                    <input type="number" class="form-control" id="stock" name="stock" required>
+                    <input type="number" class="form-control" name="stock" required>
                 </div>
                 <div class="form-group">
                     <label for="information">Información</label>
-                    <textarea class="form-control" id="information" name="information"></textarea>
+                    <textarea class="form-control" name="information"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">Añadir producto</button>
+                <button type="submit" class="btn btn-primary" name="add">Añadir producto</button>
             </form>
             <?php
         } else {
+
+            // Si estoy en la opcion 1 y pulso en un producto aparece esta información
             if (isset($_GET['product'])) {
                 foreach ($products as $product) {
                     if ($product['id'] == $_GET['product']) {
@@ -131,28 +215,58 @@ switch ($_GET["opcion"]) {
         }
         break;
     case 3:
-        include("carrito.php");
+        ?>
+        <div class="table-responsive">
+                <!--Creo la tabla -->
+                <table class="table">
+                    <tr align="center">
+                        <th>Elegir</th>
+                        <th>id</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Categoría</th>
+                        <th>Stock</th>
+                        <th>Cantidad</th>
+                    </tr>
+                    <?php
+                    foreach ($cart as $product) {
+                        ?>
+                        <tr>
+                            <td align="center"> <input type="checkbox" name="selected[]">
+                            </td>
+                            <td align="center"><a
+                                    href="?opcion=1&product=<?php echo $product["id"]; ?>"><?php echo $product["id"]; ?></a></td>
+                            <td align="center"><?php echo $product["name"]; ?></td>
+                            <td align="center"><?php echo $product["price"]; ?></td>
+                            <td align="center"><?php echo $product["category"]; ?></td>
+                            <td align="center"><?php echo $product["stock"]; ?></td>
+                            <td align="center"><input type="number" value="1" min="1" max="<?php echo $product["stock"]; ?>"></td>
+                        </tr>
+                        <?php
+                    }
+                    ?>
+                </table>
+                <button type="submit" name="buy" class="btn btn-primary" style="margin-left: 20px;">Añadir</button>
+            </div>
+            <?php
         break;
     case 4:
+
+        //En la pagina de la opcion 4 creo una especie de aviso con bootstrap
         ?>
-        <div class="alert alert-danger" role="alert">
+        <div class="alert alert-danger" role="alert" style="margin-inline: 20px;">
             <h4 class="alert-heading">¡Atención!</h4>
             <p>¿Estás seguro de que quieres vaciar el carrito?</p>
             <hr>
             <p class="mb-0">Esta acción no se puede deshacer.</p>
         </div>
         <form method="get" action="?opcion=4">
-            <button type="submit" class="btn btn-danger" name="empty">Vaciar carrito</button>
+            <button type="submit" class="btn btn-danger" name="empty" style="margin-left: 20px;">Vaciar carrito</button>
         </form>
         <?php
         break;
 }
-
-
 ?>
-
-
-
 
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
     integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
